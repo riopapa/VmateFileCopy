@@ -22,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
     File dstFullPath = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), dstFolder);
     TextView srcDst, result;
     File[] srcFiles = null;
+    long [] sizes;
+    DecimalFormat formatter = new DecimalFormat("###,###");
     String srcFileName, dstFileName;
 
     @Override
@@ -78,17 +81,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void listUp_files() {
+        int idx = 0;
+
         srcFiles = srcFullPath.listFiles();
         if (srcFiles == null)
             return;
         Arrays.sort(srcFiles);
+        sizes = new long[srcFiles.length];
         StringBuilder sb = new StringBuilder();
         for (File file: srcFiles) {
             String fileName = file.getName();
+            sizes[idx] = file.length() / 1024;
             if (!fileName.substring(0,1).equals(".")) {
-                sb.append(fileName);
-                sb.append("\n");
+                sb.append(fileName).append(" ").append(formatter.format(sizes[idx])).append("Kb\n");
             }
+            idx++;
         }
         result.setText(sb);
     }
@@ -131,12 +138,13 @@ public class MainActivity extends AppCompatActivity {
 
             srcFiles[count] = new File(dstFolder, dstFileName);
             StringBuilder sb = new StringBuilder();
+            int idx = 0;
             for (File srcFile : srcFiles) {
                 srcFileName = srcFile.getName();
-                sb.append(srcFileName).append("\n");
+                sb.append(srcFileName).append(" ").append(formatter.format(sizes[idx])).append("Kb\n");
+                idx++;
             }
             result.setText(sb);
-            result.invalidate();
             count++;
         }
 
