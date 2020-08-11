@@ -8,6 +8,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -20,8 +21,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -37,8 +36,9 @@ public class MainActivity extends AppCompatActivity {
     String dstFolder = "vmate";
     File srcFullPath = new File(Environment.getExternalStorageDirectory(), srcFolder);
     File dstFullPath = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), dstFolder);
-    TextView srcDst;
+    TextView srcDst, result;
     File[] srcFiles = null;
+    String srcFileName, dstFileName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,10 +52,10 @@ public class MainActivity extends AppCompatActivity {
         srcDst = findViewById(R.id.srcDst);
         String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder;
         srcDst.setText(txt);
+        result = findViewById(R.id.result);
         listUp_files();
     }
 
-    final static int MENU_DEFAULT = 100;
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
@@ -66,19 +66,12 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.fileCopy) {
-            StringBuilder sb = new StringBuilder();
-            for (File file: srcFiles) {
-                String fileName = file.getName();
-                if (!fileName.substring(0,1).equals(".")) {
-                    try {
-                        file_copy(file);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    sb.append(fileName);
-                    sb.append(", done\n");
-                }
+            try {
+                new run_fileCopy().execute("");
+            } catch (Exception e) {
+                Log.e("Err",e.toString());
             }
+
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -97,8 +90,7 @@ public class MainActivity extends AppCompatActivity {
                 sb.append("\n");
             }
         }
-        TextView tv = findViewById(R.id.result);
-        tv.setText(sb);
+        result.setText(sb);
     }
 
     void readyFolder (File dir){
@@ -109,13 +101,58 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    class run_fileCopy extends AsyncTask<String, String, Void> {
+
+        int count;
+        @Override
+        protected void onPreExecute() {
+            count = 0;
+            result.setText("");
+        }
+
+        @Override
+        protected Void doInBackground(String... inputParams) {
+            for (File srcFile : srcFiles) {
+                srcFileName = srcFile.getName();
+                if (!srcFileName.substring(0, 1).equals(".")) {
+                    try {
+                        file_copy(srcFile);
+                        publishProgress();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(String... values) {
+
+            srcFiles[count] = new File(dstFolder, dstFileName);
+            StringBuilder sb = new StringBuilder();
+            for (File srcFile : srcFiles) {
+                srcFileName = srcFile.getName();
+                sb.append(srcFileName).append("\n");
+            }
+            result.setText(sb);
+            result.invalidate();
+            count++;
+        }
+
+        @Override
+        protected void onPostExecute(final Void statistics) {
+            Toast.makeText(mContext, "Copy Completed", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     void file_copy(File srcFile) throws IOException {
         String srcName = srcFile.getName();
         Date srcDate = new Date(srcFile.lastModified());
         final SimpleDateFormat sdfDateTimeLog = new SimpleDateFormat("YYMMdd_HHmmss", Locale.getDefault());
-        String dstName = sdfDateTimeLog.format(srcDate)+srcName.substring(srcName.length()-4);
+        dstFileName = sdfDateTimeLog.format(srcDate)+srcName.substring(srcName.length()-4);
 
-        File dstFile = new File (dstFullPath, dstName);
+        File dstFile = new File (dstFullPath, dstFileName);
         FileChannel srcChannel = null;
         FileChannel dstChannel = null;
         try {
@@ -125,6 +162,7 @@ public class MainActivity extends AppCompatActivity {
         }finally{
             srcChannel.close();
             dstChannel.close();
+            dstFile.setLastModified(srcDate.getTime());
         }
     }
 
