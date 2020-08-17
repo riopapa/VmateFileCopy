@@ -58,16 +58,17 @@ public class MainActivity extends AppCompatActivity {
         mActivity = this;
         mContext = this;
         askPermission();
+        srcDst = findViewById(R.id.srcDst);
+        result = findViewById(R.id.result);
         readyFolder(srcFullPath);
         readyFolder(dstFullPath);
+        listUp_files();
         sharedPref = getApplicationContext().getSharedPreferences("blackBox", MODE_PRIVATE);
         editor = sharedPref.edit();
         timeShift = sharedPref.getInt("timeShift",-9);
-        srcDst = findViewById(R.id.srcDst);
-        String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder+"\nTime Shift : "+timeShift;
+        String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder+"\nTime Shift : "+timeShift+
+                "\n"+sampleTimeShift();
         srcDst.setText(txt);
-        result = findViewById(R.id.result);
-        listUp_files();
     }
 
     @Override
@@ -101,18 +102,16 @@ public class MainActivity extends AppCompatActivity {
         edittext.setText(""+timeShift);
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Apply Time Shift");
-        if (srcFiles.length> 0) {
-            long dateTime = srcFiles[0].lastModified();
-            String s = srcFiles[0].getName()+" >> "+sdfDateTime.format(dateTime+timeShift*60*60*1000);
-            builder.setMessage(s);
-        }
+        builder.setMessage(sampleTimeShift());
+
         builder.setView(edittext);
         builder.setPositiveButton("OK",
                 new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         timeShift = Integer.parseInt(edittext.getText().toString());
                         editor.putInt("timeShift", timeShift).apply();
-                        String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder+"\nTime Shift : "+timeShift;
+                        String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder+"\nTime Shift : "+timeShift+
+                                "\n"+sampleTimeShift();
                         srcDst.setText(txt);
                     }
                 });
@@ -122,6 +121,14 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
         builder.show();
+    }
+
+    private String sampleTimeShift() {
+        if (srcFiles.length> 0) {
+            long dateTime = srcFiles[0].lastModified();
+            return srcFiles[0].getName()+"\n >> "+sdfDateTime.format(dateTime+timeShift*60*60*1000);
+        }
+        return "";
     }
 
 
@@ -195,23 +202,28 @@ public class MainActivity extends AppCompatActivity {
 
             int currIdx = values[0];
             srcFiles[count] = new File(dstFolder, dstFileName);
-            StringBuilder sb = new StringBuilder();
-            for (int idx = 0; idx < srcFiles.length; idx++) {
-                srcFileName = srcFiles[idx].getName();
-                sb.append((currIdx == idx)? "<< ":"");
-                sb.append(srcFileName).append("  ");
-                sb.append(calcSize(sizes[idx]));
-                sb.append((currIdx == idx)? " >>":"");
-                sb.append("\n");
-            }
-            result.setText(sb);
+            result.setText(listUpFiles(currIdx));
             count++;
         }
 
         @Override
         protected void onPostExecute(final Void statistics) {
+            result.setText(listUpFiles(-1));
             Toast.makeText(mContext, "Copy Completed", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private StringBuilder listUpFiles(int currIdx) {
+        StringBuilder sb = new StringBuilder();
+        for (int idx = 0; idx < srcFiles.length; idx++) {
+            srcFileName = srcFiles[idx].getName();
+            sb.append((currIdx == idx)? "<< ":"");
+            sb.append(srcFileName).append("  ");
+            sb.append(calcSize(sizes[idx]));
+            sb.append((currIdx == idx)? " >>":"");
+            sb.append("\n");
+        }
+        return sb;
     }
 
     void file_copy(File srcFile) throws IOException {
