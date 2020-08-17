@@ -64,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
         editor = sharedPref.edit();
         timeShift = sharedPref.getInt("timeShift",-9);
         srcDst = findViewById(R.id.srcDst);
-        String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder;
+        String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder+"\nTime Shift : "+timeShift;
         srcDst.setText(txt);
         result = findViewById(R.id.result);
         listUp_files();
@@ -112,7 +112,8 @@ public class MainActivity extends AppCompatActivity {
                     public void onClick(DialogInterface dialog, int which) {
                         timeShift = Integer.parseInt(edittext.getText().toString());
                         editor.putInt("timeShift", timeShift).apply();
-//                        listUp_files();
+                        String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder+"\nTime Shift : "+timeShift;
+                        srcDst.setText(txt);
                     }
                 });
         builder.setNegativeButton("Cancel",
