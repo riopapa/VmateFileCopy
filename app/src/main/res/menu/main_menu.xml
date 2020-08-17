@@ -3,6 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/timeShift"
+        android:orderInCategory="100"
+        android:title="none"
+        android:icon="@mipmap/time_shift"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/fileCopy"
         android:orderInCategory="100"
         android:title="none"

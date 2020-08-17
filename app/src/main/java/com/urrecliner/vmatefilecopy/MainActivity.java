@@ -7,6 +7,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -14,6 +15,7 @@ import android.os.Environment;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -40,8 +42,14 @@ public class MainActivity extends AppCompatActivity {
     TextView srcDst, result;
     File[] srcFiles = null;
     long [] sizes;
-    DecimalFormat formatter = new DecimalFormat("###,###");
+    DecimalFormat formatterKb = new DecimalFormat("###,###Kb");
+    DecimalFormat formatterMb = new DecimalFormat("###,###.#Mb");
+    DecimalFormat formatterGb = new DecimalFormat("###,###Mb");
     String srcFileName, dstFileName;
+    SharedPreferences sharedPref;
+    SharedPreferences.Editor editor;
+    int timeShift;
+    final SimpleDateFormat sdfDateTime = new SimpleDateFormat("YYYYMMdd_HHmmss", Locale.getDefault());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +60,9 @@ public class MainActivity extends AppCompatActivity {
         askPermission();
         readyFolder(srcFullPath);
         readyFolder(dstFullPath);
+        sharedPref = getApplicationContext().getSharedPreferences("blackBox", MODE_PRIVATE);
+        editor = sharedPref.edit();
+        timeShift = sharedPref.getInt("timeShift",-9);
         srcDst = findViewById(R.id.srcDst);
         String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder;
         srcDst.setText(txt);
@@ -77,8 +88,41 @@ public class MainActivity extends AppCompatActivity {
 
             return true;
         }
+        else if (id == R.id.timeShift) {
+            editTimeShift();
+
+        }
         return super.onOptionsItemSelected(item);
     }
+
+    void editTimeShift()
+    {
+        final EditText edittext = new EditText(this);
+        edittext.setText(""+timeShift);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Apply Time Shift");
+        if (srcFiles.length> 0) {
+            long dateTime = srcFiles[0].lastModified();
+            String s = srcFiles[0].getName()+" >> "+sdfDateTime.format(dateTime+timeShift*60*60*1000);
+            builder.setMessage(s);
+        }
+        builder.setView(edittext);
+        builder.setPositiveButton("OK",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        timeShift = Integer.parseInt(edittext.getText().toString());
+                        editor.putInt("timeShift", timeShift).apply();
+//                        listUp_files();
+                    }
+                });
+        builder.setNegativeButton("Cancel",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                    }
+                });
+        builder.show();
+    }
+
 
     void listUp_files() {
         int idx = 0;
@@ -93,13 +137,25 @@ public class MainActivity extends AppCompatActivity {
             String fileName = file.getName();
             sizes[idx] = file.length() / 1024;
             if (!fileName.substring(0,1).equals(".")) {
-                sb.append(fileName).append(" ").append(formatter.format(sizes[idx])).append("Kb\n");
+                sb.append(fileName).append("  ");
+                sb.append(calcSize(sizes[idx]));
+                sb.append("\n");
             }
             idx++;
         }
         result.setText(sb);
     }
 
+    String calcSize(long siz) {
+        float howBig = (float) siz;
+        if (howBig < 5000)
+            return(formatterKb.format(howBig));
+        else if (howBig < 1000000)
+            return formatterMb.format(howBig/1024);
+        else
+            return formatterGb.format(howBig/1024);
+
+    }
     void readyFolder (File dir){
         try {
             if (!dir.exists()) dir.mkdirs();
@@ -108,7 +164,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    class run_fileCopy extends AsyncTask<String, String, Void> {
+    class run_fileCopy extends AsyncTask<String, Integer, Void> {
 
         int count;
         @Override
@@ -119,12 +175,12 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected Void doInBackground(String... inputParams) {
-            for (File srcFile : srcFiles) {
-                srcFileName = srcFile.getName();
+            for (int idx = 0; idx < srcFiles.length; idx++) {
+                srcFileName = srcFiles[idx].getName();
                 if (!srcFileName.substring(0, 1).equals(".")) {
                     try {
-                        file_copy(srcFile);
-                        publishProgress();
+                        file_copy(srcFiles[idx]);
+                        publishProgress(idx);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -134,15 +190,18 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        protected void onProgressUpdate(String... values) {
+        protected void onProgressUpdate(Integer... values) {
 
+            int currIdx = values[0];
             srcFiles[count] = new File(dstFolder, dstFileName);
             StringBuilder sb = new StringBuilder();
-            int idx = 0;
-            for (File srcFile : srcFiles) {
-                srcFileName = srcFile.getName();
-                sb.append(srcFileName).append(" ").append(formatter.format(sizes[idx])).append("Kb\n");
-                idx++;
+            for (int idx = 0; idx < srcFiles.length; idx++) {
+                srcFileName = srcFiles[idx].getName();
+                sb.append((currIdx == idx)? "<< ":"");
+                sb.append(srcFileName).append("  ");
+                sb.append(calcSize(sizes[idx]));
+                sb.append((currIdx == idx)? " >>":"");
+                sb.append("\n");
             }
             result.setText(sb);
             count++;
@@ -156,9 +215,8 @@ public class MainActivity extends AppCompatActivity {
 
     void file_copy(File srcFile) throws IOException {
         String srcName = srcFile.getName();
-        Date srcDate = new Date(srcFile.lastModified());
-        final SimpleDateFormat sdfDateTimeLog = new SimpleDateFormat("YYMMdd_HHmmss", Locale.getDefault());
-        dstFileName = sdfDateTimeLog.format(srcDate)+srcName.substring(srcName.length()-4);
+        long srcDate = srcFile.lastModified()+timeShift*60*60*1000;
+        dstFileName = sdfDateTime.format(srcDate)+srcName.substring(srcName.length()-4);
 
         File dstFile = new File (dstFullPath, dstFileName);
         FileChannel srcChannel = null;
@@ -170,7 +228,7 @@ public class MainActivity extends AppCompatActivity {
         }finally{
             srcChannel.close();
             dstChannel.close();
-            dstFile.setLastModified(srcDate.getTime());
+            dstFile.setLastModified(srcDate);
         }
     }
 
