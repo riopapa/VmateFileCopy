@@ -9,9 +9,17 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.method.ScrollingMovementMethod;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -43,8 +51,8 @@ public class MainActivity extends AppCompatActivity {
     File[] srcFiles = null;
     long [] sizes;
     DecimalFormat formatterKb = new DecimalFormat("###,###Kb");
-    DecimalFormat formatterMb = new DecimalFormat("###,###.#Mb");
-    DecimalFormat formatterGb = new DecimalFormat("###,###Mb");
+    DecimalFormat formatterMb = new DecimalFormat("###,###Mb");
+    DecimalFormat formatterGb = new DecimalFormat("###,###.## Gb");
     String srcFileName, dstFileName;
     SharedPreferences sharedPref;
     SharedPreferences.Editor editor;
@@ -69,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder+"\nTime Shift : "+timeShift+
                 "\n"+sampleTimeShift();
         srcDst.setText(txt);
+        result.setMovementMethod(new ScrollingMovementMethod());
     }
 
     @Override
@@ -161,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
         else if (howBig < 1000000)
             return formatterMb.format(howBig/1024);
         else
-            return formatterGb.format(howBig/1024);
+            return formatterGb.format(howBig/1024/1024);
 
     }
     void readyFolder (File dir){
@@ -213,17 +222,26 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private StringBuilder listUpFiles(int currIdx) {
+    private SpannableString listUpFiles(int currIdx) {
+        int sPos = 0, fPos = 0;
         StringBuilder sb = new StringBuilder();
         for (int idx = 0; idx < srcFiles.length; idx++) {
+            if (currIdx == idx)
+                sPos = sb.length();
             srcFileName = srcFiles[idx].getName();
-            sb.append((currIdx == idx)? "<< ":"");
+//            sb.append((currIdx == idx)? "<< ":"");
             sb.append(srcFileName).append("  ");
             sb.append(calcSize(sizes[idx]));
-            sb.append((currIdx == idx)? " >>":"");
+            sb.append((currIdx == idx)? " done.":"");
+            if (currIdx == idx)
+                fPos = sb.length();
             sb.append("\n");
         }
-        return sb;
+        SpannableString ss = new SpannableString(sb);
+        ss.setSpan(new ForegroundColorSpan(Color.BLUE), sPos, fPos, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new StyleSpan(Typeface.BOLD), sPos, fPos, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new RelativeSizeSpan(1.2f), sPos, fPos, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return ss;
     }
 
     void file_copy(File srcFile) throws IOException {

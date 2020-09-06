@@ -9,7 +9,7 @@
     <TextView
         android:id="@+id/srcDst"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="100dp"
         android:textStyle="bold"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
@@ -19,14 +19,17 @@
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:scrollbars="vertical"
         app:layout_constraintTop_toBottomOf="@id/srcDst"
         app:layout_constraintBottom_toTopOf="@id/dummyBottom" >
         <TextView
             android:id="@+id/result"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="30"
             android:text="Hello World!"
             android:textSize="14dp"
+            android:scrollbars="vertical"
             android:gravity="center_horizontal"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent" />
@@ -35,7 +38,7 @@
     <TextView
         android:id="@+id/dummyBottom"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="24dp"
         android:text="\n\n"
         android:layout_marginBottom="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
