@@ -135,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
     private String sampleTimeShift() {
         if (srcFiles.length> 0) {
             long dateTime = srcFiles[0].lastModified();
-            return srcFiles[0].getName()+"\n >> "+sdfDateTime.format(dateTime+timeShift*60*60*1000);
+            return srcFiles[0].getName()+"\n >> "+sdfDateTime.format(dateTime+timeShift*60*60*1000)+srcFiles[0].getName();
         }
         return "";
     }
