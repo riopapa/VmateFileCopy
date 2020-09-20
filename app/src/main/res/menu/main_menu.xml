@@ -3,6 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/help"
+        android:orderInCategory="100"
+        android:title="none"
+        android:icon="@mipmap/information"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/timeShift"
         android:orderInCategory="100"
         android:title="none"

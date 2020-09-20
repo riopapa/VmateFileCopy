@@ -7,6 +7,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -32,11 +33,14 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
@@ -46,7 +50,8 @@ public class MainActivity extends AppCompatActivity {
     String srcFolder = "Vmate/sd/DCIM/100HSCAM";
     String dstFolder = "vmate";
     File srcFullPath = new File(Environment.getExternalStorageDirectory(), srcFolder);
-    File dstFullPath = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), dstFolder);
+    File cameraFullPath = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),"");
+    File dstFullPath = new File(cameraFullPath, dstFolder);
     TextView srcDst, result;
     File[] srcFiles = null;
     long [] sizes;
@@ -57,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
     SharedPreferences sharedPref;
     SharedPreferences.Editor editor;
     int timeShift;
+    boolean firstTime;
     final SimpleDateFormat sdfDateTime = new SimpleDateFormat("YYYYMMdd_HHmmss", Locale.getDefault());
 
     @Override
@@ -71,13 +77,20 @@ public class MainActivity extends AppCompatActivity {
         readyFolder(srcFullPath);
         readyFolder(dstFullPath);
         listUp_files();
-        sharedPref = getApplicationContext().getSharedPreferences("blackBox", MODE_PRIVATE);
+        sharedPref = getApplicationContext().getSharedPreferences("vmate", MODE_PRIVATE);
         editor = sharedPref.edit();
-        timeShift = sharedPref.getInt("timeShift",-9);
-        String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder+"\nTime Shift : "+timeShift+
+        timeShift = sharedPref.getInt("timeShift",9);
+        firstTime = sharedPref.getBoolean("firstTime",true);
+        String txt = "Source : "+srcFolder+"\nDestination : "+ cameraFullPath.getName()+"/"+dstFolder+"\nTime Shift : "+timeShift+
                 "\n"+sampleTimeShift();
         srcDst.setText(txt);
         result.setMovementMethod(new ScrollingMovementMethod());
+        if (firstTime) {
+            firstTime = false;
+            editor.putBoolean("firstTime", false).apply();
+            Intent intent = new Intent(this, HelpActivity.class);
+            startActivity(intent);
+        }
     }
 
     @Override
@@ -102,6 +115,10 @@ public class MainActivity extends AppCompatActivity {
             editTimeShift();
 
         }
+        else if (id == R.id.help) {
+            Intent intent = new Intent(this, HelpActivity.class);
+            startActivity(intent);
+        }
         return super.onOptionsItemSelected(item);
     }
 
@@ -119,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
                     public void onClick(DialogInterface dialog, int which) {
                         timeShift = Integer.parseInt(edittext.getText().toString());
                         editor.putInt("timeShift", timeShift).apply();
-                        String txt = "Source : "+srcFolder+"\nDestination : DCIM/"+dstFolder+"\nTime Shift : "+timeShift+
+                        String txt = "Source : "+srcFolder+"\nDestination : "+ cameraFullPath.getName()+"/"+dstFolder+"\nTime Shift : "+timeShift+
                                 "\n"+sampleTimeShift();
                         srcDst.setText(txt);
                     }
@@ -135,7 +152,9 @@ public class MainActivity extends AppCompatActivity {
     private String sampleTimeShift() {
         if (srcFiles.length> 0) {
             long dateTime = srcFiles[0].lastModified();
-            return srcFiles[0].getName()+"\n >> "+sdfDateTime.format(dateTime+timeShift*60*60*1000)+srcFiles[0].getName();
+            String srcName = srcFiles[0].getName();
+            return srcName+"\n  => "+sdfDateTime.format(dateTime-timeShift*60*60*1000)
+                    +srcName.substring(srcName.length()-4);
         }
         return "";
     }
@@ -196,8 +215,8 @@ public class MainActivity extends AppCompatActivity {
                 srcFileName = srcFiles[idx].getName();
                 if (!srcFileName.substring(0, 1).equals(".")) {
                     try {
-                        file_copy(srcFiles[idx]);
                         publishProgress(idx);
+                        file_copy(srcFiles[idx]);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -232,7 +251,7 @@ public class MainActivity extends AppCompatActivity {
 //            sb.append((currIdx == idx)? "<< ":"");
             sb.append(srcFileName).append("  ");
             sb.append(calcSize(sizes[idx]));
-            sb.append((currIdx == idx)? " done.":"");
+//            sb.append((currIdx == idx)? " done.":"");
             if (currIdx == idx)
                 fPos = sb.length();
             sb.append("\n");
@@ -246,7 +265,7 @@ public class MainActivity extends AppCompatActivity {
 
     void file_copy(File srcFile) throws IOException {
         String srcName = srcFile.getName();
-        long srcDate = srcFile.lastModified()+timeShift*60*60*1000;
+        long srcDate = srcFile.lastModified()-timeShift*60*60*1000;
         dstFileName = sdfDateTime.format(srcDate)+srcName.substring(srcName.length()-4);
 
         File dstFile = new File (dstFullPath, dstFileName);
@@ -259,9 +278,28 @@ public class MainActivity extends AppCompatActivity {
         }finally{
             srcChannel.close();
             dstChannel.close();
-            dstFile.setLastModified(srcDate);
         }
+        Path path = Paths.get(dstFile.toString());
+        FileTime stamp = FileTime.fromMillis(srcDate);
+        try {
+            Files.setAttribute(path, "creationTime", stamp);
+            Files.setAttribute(path, "lastAccessTime", stamp);
+            Files.setAttribute(path, "lastModifiedTime", stamp);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
+//        try {
+//            attr = Files.readAttributes(path, BasicFileAttributes.class);
+//            FileTime fAccess = attr.lastAccessTime();
+//            FileTime fCreate = attr.creationTime();
+//            FileTime fModified = attr.lastModifiedTime();
+//            Log.w("Date", "access="+fAccess+" create="+fCreate+" modi="+fModified);
+//        } catch (IOException ex) {
+//            ex.printStackTrace();
+//        }
     }
+
 
     // ↓ ↓ ↓ P E R M I S S I O N    RELATED /////// ↓ ↓ ↓ ↓
     ArrayList<String> permissions = new ArrayList<>();
@@ -304,8 +342,8 @@ public class MainActivity extends AppCompatActivity {
                     showDialog(msg);
                 }
             }
-            else
-                Toast.makeText(mContext, "Permissions not granted.", Toast.LENGTH_LONG).show();
+//            else
+//                Toast.makeText(mContext, "Permissions not granted.", Toast.LENGTH_LONG).show();
         }
     }
     private void showDialog(String msg) {
