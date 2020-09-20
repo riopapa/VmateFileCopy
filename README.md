@@ -1,4 +1,3 @@
-# vmate file copy (2020-09-20)
 
 ## Function : Convert vmate files into valid date time format
 
@@ -14,7 +13,8 @@
 
     -. When this app is loaded, it will display all the file list you downloaded from vmate app.<br><br>
 
-    -. First thing you should do is clicking <b><i>clock icon</i></b> and set your time difference (e.g. 9 for Korea, -8 for L.A.). After setting, you may check both files displayed in heading area<br><br>
+    -. First thing you should do is clicking <b><i>clock icon</i></b> and set your time difference
+     (e.g. 9 for Korea, -8 for L.A.). After setting, you may check both files displayed in heading area<br><br>
 
     -. If ready, click <b><i>copy icon</i></b>, then copying will be started while displaying current file name.<br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;from : \Vmate\sd/DCIM/100HSCAM<br>
