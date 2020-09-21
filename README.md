@@ -26,7 +26,7 @@
 
     Sorry but only available in **android** play store
     *Author* : Woncherl Ha, riopapa@gmail.com
-    *Source* :  [my github](https://github.com/riopapa/VmateFileCopy)
+    *Source* : [my github](https://github.com/riopapa/VmateFileCopy)
 
 ###
      

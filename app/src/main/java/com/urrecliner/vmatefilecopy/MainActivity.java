@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
     String srcFileName, dstFileName;
     SharedPreferences sharedPref;
     SharedPreferences.Editor editor;
-    int timeShift;
+    float timeZone;
     boolean firstTime;
     final SimpleDateFormat sdfDateTime = new SimpleDateFormat("YYYYMMdd_HHmmss", Locale.getDefault());
 
@@ -79,17 +79,21 @@ public class MainActivity extends AppCompatActivity {
         listUp_files();
         sharedPref = getApplicationContext().getSharedPreferences("vmate", MODE_PRIVATE);
         editor = sharedPref.edit();
-        timeShift = sharedPref.getInt("timeShift",9);
+        timeZone = sharedPref.getFloat("timeZone",-99f);
         firstTime = sharedPref.getBoolean("firstTime",true);
-        String txt = "Source : "+srcFolder+"\nDestination : "+ cameraFullPath.getName()+"/"+dstFolder+"\nTime Shift : "+timeShift+
-                "\n"+sampleTimeShift();
-        srcDst.setText(txt);
         result.setMovementMethod(new ScrollingMovementMethod());
         if (firstTime) {
             firstTime = false;
             editor.putBoolean("firstTime", false).apply();
             Intent intent = new Intent(this, HelpActivity.class);
             startActivity(intent);
+        }
+        if (timeZone == -99f) {
+            timeZone = 9;
+//            String txt = "Source : "+srcFolder+"\nDestination : "+ cameraFullPath.getName()+"/"+dstFolder+
+//                    "\nTime Zone : "+ timeZone + "\n"+sampleTimeShift();
+//            srcDst.setText(txt);
+            editTimeShift();
         }
     }
 
@@ -125,18 +129,18 @@ public class MainActivity extends AppCompatActivity {
     void editTimeShift()
     {
         final EditText edittext = new EditText(this);
-        edittext.setText(""+timeShift);
+        edittext.setText(""+ timeZone);
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Apply Time Shift");
-        builder.setMessage(sampleTimeShift());
+        builder.setTitle("Set TimeZone");
+        builder.setMessage(sampleTimeShift()+"\nEnter -9.5 if timezone diff is -9:30");
 
         builder.setView(edittext);
         builder.setPositiveButton("OK",
                 new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
-                        timeShift = Integer.parseInt(edittext.getText().toString());
-                        editor.putInt("timeShift", timeShift).apply();
-                        String txt = "Source : "+srcFolder+"\nDestination : "+ cameraFullPath.getName()+"/"+dstFolder+"\nTime Shift : "+timeShift+
+                        timeZone = Float.parseFloat(edittext.getText().toString());
+                        editor.putFloat("timeZone", timeZone).apply();
+                        String txt = "Source : "+srcFolder+"\nDestination : "+ cameraFullPath.getName()+"/"+dstFolder+"\nTime Zone : "+ timeZone +
                                 "\n"+sampleTimeShift();
                         srcDst.setText(txt);
                     }
@@ -153,12 +157,11 @@ public class MainActivity extends AppCompatActivity {
         if (srcFiles.length> 0) {
             long dateTime = srcFiles[0].lastModified();
             String srcName = srcFiles[0].getName();
-            return srcName+"\n  => "+sdfDateTime.format(dateTime-timeShift*60*60*1000)
+            return srcName+"\n  => "+sdfDateTime.format(dateTime- (long) (timeZone *60*60*1000))
                     +srcName.substring(srcName.length()-4);
         }
         return "";
     }
-
 
     void listUp_files() {
         int idx = 0;
@@ -265,7 +268,7 @@ public class MainActivity extends AppCompatActivity {
 
     void file_copy(File srcFile) throws IOException {
         String srcName = srcFile.getName();
-        long srcDate = srcFile.lastModified()-timeShift*60*60*1000;
+        long srcDate = srcFile.lastModified()- (long) (timeZone *60*60*1000);
         dstFileName = sdfDateTime.format(srcDate)+srcName.substring(srcName.length()-4);
 
         File dstFile = new File (dstFullPath, dstFileName);
