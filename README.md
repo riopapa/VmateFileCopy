@@ -1,26 +1,5 @@
 # Vmate File Copy
-**VmateFileCopy** is the android application to speak notification text using google TTS
-
-- it supports table to convert application name into simple keyword
-- it supports table to ignore some cases
-
-<H1>Screenshots and How to operate</H1>
-
-<H3>MainActivity</H3>
-
-- When loaded, it reads various text files listed in next paragraph to ignore some notifications
-- Notification icon and notification bar is settled
-- Notification bar is for refresh(reload) above files and stop speaking temporary and immediately
-- Speaking pitch and speed can be adjusted.
-- Speaking will be executed when (1) no silent mode or (2) bluetooth or earphone is connected regardless of silent mode.
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-    <img src="./screenshots/mainActivity1.jpg" width=400 height=800>
-
-<H3>Tables used</H3>
-
-- Location : /sdcard/sayNotiText/tables
-- Files in that directory
+**VmateFileCopy** is file copy application only for snoppa vmate
 
 ## Function : Convert vmate files into valid date time format
 
@@ -42,13 +21,13 @@
 
 ## Notice
 
-    - No guarantee for improving functions
-    - This app copies vmate file into camera folder not renaming itself
-    - This app will be disparated when snoppa vmate gives proper file name.
+- No guarantee for improving functions
+- This app copies vmate file into camera folder not renaming itself
+- This app will be disparated when snoppa vmate gives proper file name.
 
 ## Remarks
 
-    Sorry but only available in **android** play store
-    *Author* : Woncherl Ha, riopapa@gmail.com
-    *Source* : [my github](https://github.com/riopapa/VmateFileCopy)
+Sorry but only available in **android** play store
+*Author* : Woncherl Ha, riopapa@gmail.com
+*Source* : [my github](https://github.com/riopapa/VmateFileCopy)
      
