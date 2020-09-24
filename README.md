@@ -13,8 +13,10 @@
 - When this app is loaded, it will display all the file list you downloaded from vmate app.
 - On setting screen
 > set your time zone
+
 > choose whether source file will be deleted or not
 If selected, it will delete source file just after copying to destination. It will be helpful if your external storage is not so big.
+
 > file location information
 >    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;source : \Vmate\sd/DCIM/100HSCAM
 >    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;destination : DCIM\vmate
