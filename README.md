@@ -16,8 +16,8 @@
 #### choose whether source file will be deleted or not
 If selected, it will delete source file just after copying to destination. It will be helpful if your external storage is not so big.
 #### file location information
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;from : \Vmate\sd/DCIM/100HSCAM
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to : DCIM\vmate
+        source : _\Vmate\sd/DCIM/100HSCAM_
+        destination : _DCIM\vmate_
 
 ## Notice
 
