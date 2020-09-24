@@ -27,7 +27,7 @@ If selected, it will delete source file just after copying to destination. It wi
 
 ## Remarks
 
-Sorry but only available in **android** play store
-*Author* : Woncherl Ha, riopapa@gmail.com
-*Source* : [my github](https://github.com/riopapa/VmateFileCopy)
+- Sorry but only available in **android** play store
+- *Feedback to* : Woncherl Ha, riopapa@gmail.com
+- *Source* : [my github](https://github.com/riopapa/VmateFileCopy)
      
