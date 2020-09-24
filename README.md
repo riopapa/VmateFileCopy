@@ -1,7 +1,7 @@
 # Vmate File Copy
 **VmateFileCopy** is file copy application only for snoppa vmate
 
-## Function : Convert vmate files into valid date time format
+## Function : Convert snoppa vmate gimbal files into valid date time format
 
 - Current Snoppa vmate creates file name with colon(:) and timezone is not local.
 - Some video play app in android phone can NOT understand this colon, and spit out that video 
