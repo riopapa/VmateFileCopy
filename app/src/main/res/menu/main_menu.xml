@@ -6,21 +6,21 @@
         android:id="@+id/help"
         android:orderInCategory="100"
         android:title="none"
-        android:icon="@mipmap/information"
+        android:icon="@mipmap/info"
         app:showAsAction="always" />
 
     <item
-        android:id="@+id/timeShift"
+        android:id="@+id/setting"
         android:orderInCategory="100"
         android:title="none"
-        android:icon="@mipmap/time_shift"
+        android:icon="@mipmap/settings"
         app:showAsAction="always" />
 
     <item
         android:id="@+id/fileCopy"
         android:orderInCategory="100"
         android:title="none"
-        android:icon="@mipmap/file_copy"
+        android:icon="@mipmap/play"
         app:showAsAction="always" />
 
 </menu>

@@ -15,15 +15,18 @@ import android.graphics.Typeface;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.RelativeSizeSpan;
+import android.text.style.StrikethroughSpan;
 import android.text.style.StyleSpan;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -42,6 +45,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -59,10 +64,10 @@ public class MainActivity extends AppCompatActivity {
     DecimalFormat formatterMb = new DecimalFormat("###,###Mb");
     DecimalFormat formatterGb = new DecimalFormat("###,###.## Gb");
     String srcFileName, dstFileName;
-    SharedPreferences sharedPref;
-    SharedPreferences.Editor editor;
-    float timeZone;
-    boolean firstTime;
+    static SharedPreferences sharedPref;
+    static SharedPreferences.Editor editor;
+    static float timeZone;
+    static boolean firstTime, deleteFlag, yesNo= false;
     final SimpleDateFormat sdfDateTime = new SimpleDateFormat("YYYYMMdd_HHmmss", Locale.getDefault());
 
     @Override
@@ -72,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         mActivity = this;
         mContext = this;
         askPermission();
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         srcDst = findViewById(R.id.srcDst);
         result = findViewById(R.id.result);
         readyFolder(srcFullPath);
@@ -81,6 +87,7 @@ public class MainActivity extends AppCompatActivity {
         editor = sharedPref.edit();
         timeZone = sharedPref.getFloat("timeZone",-99f);
         firstTime = sharedPref.getBoolean("firstTime",true);
+        deleteFlag = sharedPref.getBoolean("delete", false);
         result.setMovementMethod(new ScrollingMovementMethod());
         if (firstTime) {
             firstTime = false;
@@ -89,11 +96,13 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         }
         if (timeZone == -99f) {
-            timeZone = 9;
-//            String txt = "Source : "+srcFolder+"\nDestination : "+ cameraFullPath.getName()+"/"+dstFolder+
-//                    "\nTime Zone : "+ timeZone + "\n"+sampleTimeShift();
-//            srcDst.setText(txt);
-            editTimeShift();
+            Intent intent = new Intent(this, SetActivity.class);
+            startActivity(intent);
+        }
+        else {
+            String txt = "Source : "+srcFolder+"\nDestination : "+ cameraFullPath.getName()+"/"+dstFolder+"\nTime Zone : "+ timeZone +
+                    "\n"+sampleTimeShift();
+            srcDst.setText(txt);
         }
     }
 
@@ -107,17 +116,12 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.fileCopy) {
-            try {
-                new run_fileCopy().execute("");
-            } catch (Exception e) {
-                Log.e("Err",e.toString());
-            }
-
+            yes4FileCopy();
             return true;
         }
-        else if (id == R.id.timeShift) {
-            editTimeShift();
-
+        else if (id == R.id.setting) {
+            Intent intent = new Intent(this, SetActivity.class);
+            startActivity(intent);
         }
         else if (id == R.id.help) {
             Intent intent = new Intent(this, HelpActivity.class);
@@ -126,31 +130,31 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    void editTimeShift()
-    {
-        final EditText edittext = new EditText(this);
-        edittext.setText(""+ timeZone);
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Set TimeZone");
-        builder.setMessage(sampleTimeShift()+"\nEnter -9.5 if timezone diff is -9:30");
+    void yes4FileCopy() {
 
-        builder.setView(edittext);
-        builder.setPositiveButton("OK",
-                new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        timeZone = Float.parseFloat(edittext.getText().toString());
-                        editor.putFloat("timeZone", timeZone).apply();
-                        String txt = "Source : "+srcFolder+"\nDestination : "+ cameraFullPath.getName()+"/"+dstFolder+"\nTime Zone : "+ timeZone +
-                                "\n"+sampleTimeShift();
-                        srcDst.setText(txt);
-                    }
-                });
-        builder.setNegativeButton("Cancel",
-                new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                    }
-                });
-        builder.show();
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Click Go to start File Copy");
+        String s = sampleTimeShift()+"\n";
+        if (deleteFlag)
+            s += "<<< Remarks >>>\nEach files in source will be deleted after copying..";
+        builder.setMessage(s);
+        builder.setPositiveButton("Go", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                try {
+                    new run_fileCopy().execute("");
+                } catch (Exception e) {
+                    Log.e("Err", e.toString());
+                }
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+            }
+        });
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     private String sampleTimeShift() {
@@ -210,12 +214,14 @@ public class MainActivity extends AppCompatActivity {
         protected void onPreExecute() {
             count = 0;
             result.setText("");
+            SystemClock.sleep(10);
         }
 
         @Override
         protected Void doInBackground(String... inputParams) {
             for (int idx = 0; idx < srcFiles.length; idx++) {
                 srcFileName = srcFiles[idx].getName();
+                Log.w("file",srcFileName);
                 if (!srcFileName.substring(0, 1).equals(".")) {
                     try {
                         publishProgress(idx);
@@ -241,6 +247,14 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(final Void statistics) {
             result.setText(listUpFiles(-1));
             Toast.makeText(mContext, "Copy Completed", Toast.LENGTH_SHORT).show();
+            new Timer().schedule(new TimerTask() {
+                public void run() {
+                    finish();
+                    finishAffinity();
+                    System.exit(0);
+                    android.os.Process.killProcess(android.os.Process.myPid());
+                }
+            }, 3000);
         }
     }
 
@@ -251,9 +265,8 @@ public class MainActivity extends AppCompatActivity {
             if (currIdx == idx)
                 sPos = sb.length();
             srcFileName = srcFiles[idx].getName();
-//            sb.append((currIdx == idx)? "<< ":"");
-            sb.append(srcFileName).append("  ");
-            sb.append(calcSize(sizes[idx]));
+                sb.append(srcFileName).append("  ");
+                sb.append(calcSize(sizes[idx]));
 //            sb.append((currIdx == idx)? " done.":"");
             if (currIdx == idx)
                 fPos = sb.length();
@@ -261,6 +274,10 @@ public class MainActivity extends AppCompatActivity {
         }
         SpannableString ss = new SpannableString(sb);
         ss.setSpan(new ForegroundColorSpan(Color.BLUE), sPos, fPos, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (sPos > 0) {
+            ss.setSpan(new ForegroundColorSpan(Color.GRAY), 0, sPos, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            ss.setSpan(new StrikethroughSpan(), 0, sPos, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
         ss.setSpan(new StyleSpan(Typeface.BOLD), sPos, fPos, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         ss.setSpan(new RelativeSizeSpan(1.2f), sPos, fPos, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         return ss;
@@ -291,7 +308,8 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
-
+        if (deleteFlag)
+            srcFile.delete();
 //        try {
 //            attr = Files.readAttributes(path, BasicFileAttributes.class);
 //            FileTime fAccess = attr.lastAccessTime();
