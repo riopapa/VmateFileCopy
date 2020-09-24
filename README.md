@@ -26,7 +26,7 @@ If selected, it will delete source file just after copying to destination. It wi
 - This app will be disparated when snoppa vmate gives proper file name.
 
 ## Remarks
-
+    
 - Sorry but only available in **android** play store
 - *Feedback to* : Woncherl Ha, riopapa@gmail.com
 - *Source* : [in my github](https://github.com/riopapa/VmateFileCopy)
