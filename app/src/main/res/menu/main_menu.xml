@@ -17,7 +17,7 @@
         app:showAsAction="always" />
 
     <item
-        android:id="@+id/fileCopy"
+        android:id="@+id/play"
         android:orderInCategory="100"
         android:title="none"
         android:icon="@mipmap/play"

@@ -1,15 +1,18 @@
 package com.urrecliner.vmatefilecopy;
 
 import android.os.Bundle;
+import android.text.Layout;
 import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.Switch;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import static com.urrecliner.vmatefilecopy.MainActivity.deleteFlag;
 import static com.urrecliner.vmatefilecopy.MainActivity.editor;
+import static com.urrecliner.vmatefilecopy.MainActivity.renameFlag;
 import static com.urrecliner.vmatefilecopy.MainActivity.timeZone;
 
 public class SetActivity extends AppCompatActivity {
@@ -27,9 +30,19 @@ public class SetActivity extends AppCompatActivity {
                 editor.putFloat("timeZone", timeZone).apply();
             }
         });
-        Switch sw = findViewById(R.id.delete);
-        sw.setChecked(deleteFlag);
-        sw.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        Switch swRename = findViewById(R.id.rename);
+        swRename.setChecked(renameFlag);
+        swRename.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                renameFlag = isChecked;
+                editor.putBoolean("rename", renameFlag).apply();
+                LinearLayout layout = findViewById(R.id.deleteLayout);
+                layout.setVisibility((renameFlag) ? View.INVISIBLE : View.VISIBLE);
+            }
+        });
+        Switch swDelete = findViewById(R.id.delete);
+        swDelete.setChecked(deleteFlag);
+        swDelete.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 deleteFlag = isChecked;
                 editor.putBoolean("delete", deleteFlag).apply();

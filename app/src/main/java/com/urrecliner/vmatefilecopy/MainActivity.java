@@ -1,14 +1,15 @@
 package com.urrecliner.vmatefilecopy;
 
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -27,10 +28,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.WindowManager;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -39,6 +38,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.FileTime;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -54,21 +54,22 @@ public class MainActivity extends AppCompatActivity {
     Context mContext;
     String srcFolder = "Vmate/sd/DCIM/100HSCAM";
     String dstFolder = "vmate";
-    File srcFullPath = new File(Environment.getExternalStorageDirectory(), srcFolder);
+    File srcFullPath = new File(Environment.getExternalStorageDirectory(), srcFolder), srcLongFName;
     File cameraFullPath = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),"");
-    File dstFullPath = new File(cameraFullPath, dstFolder);
+    File dstFullPath, dstLongFName;
     TextView srcDst, result;
     File[] srcFiles = null;
     long [] sizes;
     DecimalFormat formatterKb = new DecimalFormat("###,###Kb");
     DecimalFormat formatterMb = new DecimalFormat("###,###Mb");
     DecimalFormat formatterGb = new DecimalFormat("###,###.## Gb");
-    String srcFileName, dstFileName;
+    String srcShortName, dstShortName;
     static SharedPreferences sharedPref;
     static SharedPreferences.Editor editor;
     static float timeZone;
-    static boolean firstTime, deleteFlag, yesNo= false;
+    static boolean firstTime, renameFlag, deleteFlag;
     final SimpleDateFormat sdfDateTime = new SimpleDateFormat("YYYYMMdd_HHmmss", Locale.getDefault());
+    boolean nowRunning = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,14 +81,13 @@ public class MainActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         srcDst = findViewById(R.id.srcDst);
         result = findViewById(R.id.result);
-        readyFolder(srcFullPath);
-        readyFolder(dstFullPath);
-        listUp_files();
         sharedPref = getApplicationContext().getSharedPreferences("vmate", MODE_PRIVATE);
         editor = sharedPref.edit();
         timeZone = sharedPref.getFloat("timeZone",-99f);
         firstTime = sharedPref.getBoolean("firstTime",true);
+        renameFlag = sharedPref.getBoolean("rename", true);
         deleteFlag = sharedPref.getBoolean("delete", false);
+
         result.setMovementMethod(new ScrollingMovementMethod());
         if (firstTime) {
             firstTime = false;
@@ -99,11 +99,34 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(this, SetActivity.class);
             startActivity(intent);
         }
-        else {
-            String txt = "Source : "+srcFolder+"\nDestination : "+ cameraFullPath.getName()+"/"+dstFolder+"\nTime Zone : "+ timeZone +
-                    "\n"+sampleTimeShift();
-            srcDst.setText(txt);
+        ActionBar actionBar = getSupportActionBar();
+//        actionBar.setIcon(R.mipmap.vmate);
+//        actionBar.setDisplayHomeAsUpEnabled(true);
+//        actionBar.setDisplayShowTitleEnabled(true);
+//        actionBar.setDisplayUseLogoEnabled(true);
+        actionBar.setTitle("VMate Files");
+        actionBar.setSubtitle("Rename/Copy");
+//        actionBar.setHomeButtonEnabled(false);
+        showSetting();
+    }
+
+    void showSetting() {
+        int timePos, posStart, posFinish;
+        StringBuilder sb = new StringBuilder();
+        sb.append("TIME ZONE : ").append(timeZone); timePos = sb.length();
+        sb.append("\n").append(sampleTimeShift()); posStart = sb.length();
+        if (renameFlag) {
+            sb.append("\n\nRENAME VMATE FILES");  posFinish = sb.length();
+            sb.append("\ninto ").append(srcFolder);
         }
+        else {
+            sb.append("\n\nCOPY VMATE FILES"); posFinish = sb.length();
+            sb.append("\nfrom : ").append(srcFolder).append("\ninto : ").append(cameraFullPath).append("/").append(dstFolder);
+        }
+        SpannableString ss = new SpannableString(sb);
+        ss.setSpan(new ForegroundColorSpan(Color.BLUE), 0, timePos, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new ForegroundColorSpan(Color.BLUE), posStart, posFinish, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        srcDst.setText(ss);
     }
 
     @Override
@@ -115,8 +138,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.fileCopy) {
-            yes4FileCopy();
+        if (id == R.id.play) {
+            yesNo4CopyRename();
             return true;
         }
         else if (id == R.id.setting) {
@@ -130,19 +153,19 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    void yes4FileCopy() {
+    void yesNo4CopyRename() {
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Click Go to start File Copy");
-        String s = sampleTimeShift()+"\n";
-        if (deleteFlag)
-            s += "<<< Remarks >>>\nEach files in source will be deleted after copying..";
-        builder.setMessage(s);
-        builder.setPositiveButton("Go", new DialogInterface.OnClickListener() {
+        String title = "Click 'OK' to " + ((renameFlag) ? "Rename" : "Copy");
+        title = title + "\n" + sampleTimeShift()+"\n";
+        if (!renameFlag && deleteFlag)
+            title += "<<< Remarks >>>\nEach files in source will be deleted after copying..";
+        builder.setMessage(title);
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 try {
-                    new run_fileCopy().execute("");
+                    new run_fileCopyRename().execute("");
                 } catch (Exception e) {
                     Log.e("Err", e.toString());
                 }
@@ -158,16 +181,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String sampleTimeShift() {
-        if (srcFiles.length> 0) {
-            long dateTime = srcFiles[0].lastModified();
-            String srcName = srcFiles[0].getName();
-            return srcName+"\n  => "+sdfDateTime.format(dateTime- (long) (timeZone *60*60*1000))
-                    +srcName.substring(srcName.length()-4);
+        if (srcFiles != null && srcFiles.length> 0) {
+            for (File src: srcFiles) {
+                String sName = src.getName();
+                if (sName.indexOf(":") > 0) {
+                    long dateTime = src.lastModified();
+                    return sName + "\n  => " + sdfDateTime.format(dateTime - (long) (timeZone * 60 * 60 * 1000))
+                            + sName.substring(sName.length() - 4);
+                }
+            }
         }
         return "";
     }
 
-    void listUp_files() {
+    void listUp_srcFiles() {
         int idx = 0;
 
         srcFiles = srcFullPath.listFiles();
@@ -176,6 +203,7 @@ public class MainActivity extends AppCompatActivity {
         Arrays.sort(srcFiles);
         sizes = new long[srcFiles.length];
         StringBuilder sb = new StringBuilder();
+        sb.append("\n");
         for (File file: srcFiles) {
             String fileName = file.getName();
             sizes[idx] = file.length() / 1024;
@@ -207,46 +235,79 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    class run_fileCopy extends AsyncTask<String, Integer, Void> {
-
-        int count;
-        @Override
-        protected void onPreExecute() {
-            count = 0;
-            result.setText("");
+    class run_fileCopyRename extends AsyncTask<String, Integer, Void> {
+            boolean rtnCode;
+            @Override
+            protected void onPreExecute() {
             SystemClock.sleep(10);
+            nowRunning = true;
         }
 
         @Override
         protected Void doInBackground(String... inputParams) {
+
             for (int idx = 0; idx < srcFiles.length; idx++) {
-                srcFileName = srcFiles[idx].getName();
-                Log.w("file",srcFileName);
-                if (!srcFileName.substring(0, 1).equals(".")) {
-                    try {
-                        publishProgress(idx);
-                        file_copy(srcFiles[idx]);
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                if (!nowRunning)
+                    break;
+                srcLongFName = srcFiles[idx];
+                srcShortName = srcLongFName.getName();
+                Log.w("src",srcShortName);
+                if (!srcShortName.substring(0, 1).equals(".")) {
+                    long longDate = srcFiles[idx].lastModified()- (long) (timeZone *60*60*1000);
+                    dstShortName = sdfDateTime.format(longDate)+srcShortName.substring(srcShortName.length()-4);
+                    dstLongFName = new File (dstFullPath, dstShortName);
+                    publishProgress(idx);
+                    if (srcShortName.indexOf(":") > 0) {
+                        if (renameFlag) {
+                            rtnCode = srcLongFName.renameTo(dstLongFName);
+                            Log.w("rename "+idx, srcLongFName +" > "+ dstLongFName);
+                        } else {
+                            FileChannel srcChannel = null;
+                            FileChannel dstChannel = null;
+                            try {
+                                srcChannel = new FileInputStream(srcLongFName).getChannel();
+                                dstChannel = new FileOutputStream(dstLongFName).getChannel();
+                                dstChannel.transferFrom(srcChannel, 0, srcChannel.size());
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            try {
+                                srcChannel.close();
+                                dstChannel.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            if (deleteFlag)
+                                srcLongFName.delete();
+                        }
+                        Path path = Paths.get(dstLongFName.toString());
+                        FileTime stamp = FileTime.fromMillis(longDate);
+                        try {
+                            Files.getFileAttributeView(path, BasicFileAttributeView.class).setTimes(stamp, stamp, stamp);
+//                            Files.setAttribute(path, "lastAccessTime", stamp);
+//                            Files.setAttribute(path, "lastModifiedTime", stamp);
+//                            Files.setAttribute(path, "basic:creationTime", stamp);
+                        } catch (IOException ex) {
+                            ex.printStackTrace();
+                        }
+
                     }
                 }
             }
-            return null;
+        return null;
         }
 
         @Override
         protected void onProgressUpdate(Integer... values) {
-
             int currIdx = values[0];
-            srcFiles[count] = new File(dstFolder, dstFileName);
-            result.setText(listUpFiles(currIdx));
-            count++;
+            srcFiles[currIdx] = dstLongFName;
+            result.setText(update_SrcFiles(currIdx));
         }
 
         @Override
         protected void onPostExecute(final Void statistics) {
-            result.setText(listUpFiles(-1));
-            Toast.makeText(mContext, "Copy Completed", Toast.LENGTH_SHORT).show();
+            result.setText(update_SrcFiles(-1));
+            Toast.makeText(mContext, "Rename Completed", Toast.LENGTH_SHORT).show();
             new Timer().schedule(new TimerTask() {
                 public void run() {
                     finish();
@@ -258,14 +319,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private SpannableString listUpFiles(int currIdx) {
+    private SpannableString update_SrcFiles(int currIdx) {
         int sPos = 0, fPos = 0;
         StringBuilder sb = new StringBuilder();
+        sb.append("\n");
         for (int idx = 0; idx < srcFiles.length; idx++) {
             if (currIdx == idx)
                 sPos = sb.length();
-            srcFileName = srcFiles[idx].getName();
-                sb.append(srcFileName).append("  ");
+            srcShortName = srcFiles[idx].getName();
+                sb.append(srcShortName).append("  ");
                 sb.append(calcSize(sizes[idx]));
 //            sb.append((currIdx == idx)? " done.":"");
             if (currIdx == idx)
@@ -283,78 +345,62 @@ public class MainActivity extends AppCompatActivity {
         return ss;
     }
 
-    void file_copy(File srcFile) throws IOException {
-        String srcName = srcFile.getName();
-        long srcDate = srcFile.lastModified()- (long) (timeZone *60*60*1000);
-        dstFileName = sdfDateTime.format(srcDate)+srcName.substring(srcName.length()-4);
-
-        File dstFile = new File (dstFullPath, dstFileName);
-        FileChannel srcChannel = null;
-        FileChannel dstChannel = null;
-        try {
-            srcChannel = new FileInputStream(srcFile).getChannel();
-            dstChannel = new FileOutputStream(dstFile).getChannel();
-            dstChannel.transferFrom(srcChannel, 0, srcChannel.size());
-        }finally{
-            srcChannel.close();
-            dstChannel.close();
-        }
-        Path path = Paths.get(dstFile.toString());
-        FileTime stamp = FileTime.fromMillis(srcDate);
-        try {
-            Files.setAttribute(path, "creationTime", stamp);
-            Files.setAttribute(path, "lastAccessTime", stamp);
-            Files.setAttribute(path, "lastModifiedTime", stamp);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-        if (deleteFlag)
-            srcFile.delete();
-//        try {
-//            attr = Files.readAttributes(path, BasicFileAttributes.class);
-//            FileTime fAccess = attr.lastAccessTime();
-//            FileTime fCreate = attr.creationTime();
-//            FileTime fModified = attr.lastModifiedTime();
-//            Log.w("Date", "access="+fAccess+" create="+fCreate+" modi="+fModified);
-//        } catch (IOException ex) {
-//            ex.printStackTrace();
-//        }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (renameFlag)
+            dstFullPath = srcFullPath;
+        else
+            dstFullPath = new File(cameraFullPath, dstFolder);
+        readyFolder(srcFullPath);
+        readyFolder(dstFullPath);
+        listUp_srcFiles();
+        showSetting();
     }
 
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        nowRunning = false;
+    }
 
-    // ↓ ↓ ↓ P E R M I S S I O N    RELATED /////// ↓ ↓ ↓ ↓
-    ArrayList<String> permissions = new ArrayList<>();
+    // ↓ ↓ ↓ P E R M I S S I O N   RELATED /////// ↓ ↓ ↓ ↓  BEST CASE 20/09/27 with no lambda
     private final static int ALL_PERMISSIONS_RESULT = 101;
-    ArrayList<String> permissionsToRequest;
+    ArrayList permissionsToRequest;
     ArrayList<String> permissionsRejected = new ArrayList<>();
+    String [] permissions;
 
     private void askPermission() {
-//        permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
-        permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        permissionsToRequest = findUnAskedPermissions(permissions);
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), PackageManager.GET_PERMISSIONS);
+            permissions = info.requestedPermissions;//This array contain
+        } catch (Exception e) {
+            Log.e("Permission", "Not done", e);
+        }
+
+        permissionsToRequest = findUnAskedPermissions();
         if (permissionsToRequest.size() != 0) {
-            requestPermissions(permissionsToRequest.toArray(new String[0]),
+            requestPermissions((String[]) permissionsToRequest.toArray(new String[0]),
 //            requestPermissions(permissionsToRequest.toArray(new String[permissionsToRequest.size()]),
                     ALL_PERMISSIONS_RESULT);
         }
     }
 
-    private ArrayList findUnAskedPermissions(ArrayList<String> wanted) {
+    private ArrayList findUnAskedPermissions() {
         ArrayList <String> result = new ArrayList<String>();
-        for (String perm : wanted) if (hasPermission(perm)) result.add(perm);
+        for (String perm : permissions) if (hasPermission(perm)) result.add(perm);
         return result;
     }
     private boolean hasPermission(String permission) {
         return (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED);
     }
 
-    //    @TargetApi(Build.VERSION_CODES.M)
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         if (requestCode == ALL_PERMISSIONS_RESULT) {
-            for (String perms : permissionsToRequest) {
-                if (hasPermission(perms)) {
-                    permissionsRejected.add(perms);
+            for (Object perms : permissionsToRequest) {
+                if (hasPermission((String) perms)) {
+                    permissionsRejected.add((String) perms);
                 }
             }
             if (permissionsRejected.size() > 0) {
@@ -362,9 +408,11 @@ public class MainActivity extends AppCompatActivity {
                     String msg = "These permissions are mandatory for the application. Please allow access.";
                     showDialog(msg);
                 }
+                if (shouldShowRequestPermissionRationale(permissionsRejected.get(0))) {
+                    String msg = "These permissions are mandatory for the application. Please allow access.";
+                    showDialog(msg);
+                }
             }
-//            else
-//                Toast.makeText(mContext, "Permissions not granted.", Toast.LENGTH_LONG).show();
         }
     }
     private void showDialog(String msg) {
@@ -372,7 +420,7 @@ public class MainActivity extends AppCompatActivity {
                 new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        requestPermissions(permissionsRejected.toArray(
+                        MainActivity.this.requestPermissions(permissionsRejected.toArray(
                                 new String[0]), ALL_PERMISSIONS_RESULT);
                     }
                 });
