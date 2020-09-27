@@ -196,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
 
     void listUp_srcFiles() {
         int idx = 0;
-
+        int count = 0;
         srcFiles = srcFullPath.listFiles();
         if (srcFiles == null)
             return;
@@ -206,8 +206,10 @@ public class MainActivity extends AppCompatActivity {
         sb.append("\n");
         for (File file: srcFiles) {
             String fileName = file.getName();
-            sizes[idx] = file.length() / 1024;
             if (!fileName.substring(0,1).equals(".")) {
+                if (fileName.indexOf(":") > 0)
+                    count++;
+                sizes[idx] = file.length() / 1024;
                 sb.append(fileName).append("  ");
                 sb.append(calcSize(sizes[idx]));
                 sb.append("\n");
@@ -215,6 +217,8 @@ public class MainActivity extends AppCompatActivity {
             idx++;
         }
         result.setText(sb);
+        if (count == 0)
+            Toast.makeText(getApplicationContext(), "No target files to rename/copy",Toast.LENGTH_LONG).show();
     }
 
     String calcSize(long siz) {
@@ -251,7 +255,6 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 srcLongFName = srcFiles[idx];
                 srcShortName = srcLongFName.getName();
-                Log.w("src",srcShortName);
                 if (!srcShortName.substring(0, 1).equals(".")) {
                     long longDate = srcFiles[idx].lastModified()- (long) (timeZone *60*60*1000);
                     dstShortName = sdfDateTime.format(longDate)+srcShortName.substring(srcShortName.length()-4);
@@ -259,8 +262,8 @@ public class MainActivity extends AppCompatActivity {
                     publishProgress(idx);
                     if (srcShortName.indexOf(":") > 0) {
                         if (renameFlag) {
-                            rtnCode = srcLongFName.renameTo(dstLongFName);
-                            Log.w("rename "+idx, srcLongFName +" > "+ dstLongFName);
+                            dstLongFName.delete();
+                            srcLongFName.renameTo(dstLongFName);
                         } else {
                             FileChannel srcChannel = null;
                             FileChannel dstChannel = null;
@@ -322,17 +325,19 @@ public class MainActivity extends AppCompatActivity {
     private SpannableString update_SrcFiles(int currIdx) {
         int sPos = 0, fPos = 0;
         StringBuilder sb = new StringBuilder();
+        String nowShortName;
         sb.append("\n");
         for (int idx = 0; idx < srcFiles.length; idx++) {
-            if (currIdx == idx)
-                sPos = sb.length();
-            srcShortName = srcFiles[idx].getName();
-                sb.append(srcShortName).append("  ");
+            nowShortName = srcFiles[idx].getName();
+            if (!nowShortName.substring(0,1).equals(".")) {
+                if (currIdx == idx)
+                    sPos = sb.length();
+                sb.append(srcShortName);
                 sb.append(calcSize(sizes[idx]));
-//            sb.append((currIdx == idx)? " done.":"");
-            if (currIdx == idx)
-                fPos = sb.length();
-            sb.append("\n");
+                if (currIdx == idx)
+                    fPos = sb.length();
+                sb.append("\n");
+            }
         }
         SpannableString ss = new SpannableString(sb);
         ss.setSpan(new ForegroundColorSpan(Color.BLUE), sPos, fPos, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
